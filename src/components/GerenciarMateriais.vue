@@ -129,6 +129,7 @@
     {{ notificacao.mensagem }}
     </div>
   </div>
+  
 </template>
 
 <script setup>
@@ -141,6 +142,40 @@ const API_MOVIMENTACOES = 'http://localhost:8080/api/movimentacoes'
 const modalAberto = ref(false);
 const movimentacaoForm = ref({ materialId: null, nome: '', quantidade: 1, tipo: '' });
 
+const testarCriacao = async () => {
+
+  try {
+
+    const resposta = await axios.post(
+      'http://localhost:8080/api/orcamentos',
+      {
+        nome: 'Orçamento Teste',
+
+        itens: [
+          {
+            materialId: 34,
+            quantidade: 2
+          },
+          {
+            materialId: 33,
+            quantidade: 1
+          }
+        ]
+      }
+    )
+
+    console.log("ORÇAMENTO CRIADO:", resposta.data)
+
+  } catch (error) {
+
+    console.error("ERRO:", error)
+
+    console.log(
+      "RESPOSTA:",
+      error.response?.data
+    )
+  }
+}
 
 const abrirModal = (material, tipo) => {
   movimentacaoForm.value = { 

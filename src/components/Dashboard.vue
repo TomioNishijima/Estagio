@@ -104,9 +104,10 @@ const materiaisExibidos = ref([])
 
 
 const abrirModal = () => {
+
   materiaisSelecionados.value =
     materiaisExibidos.value.map(
-      material => material.id
+      material => Number(material.id)
     )
 
   modalAberto.value = true
@@ -129,27 +130,24 @@ const salvarSelecao = async () => {
 
   try {
 
-    // IDs que atualmente estão na Dashboard
     const idsAtuais = materiaisExibidos.value.map(
-      material => material.id
+      material => Number(material.id)
     )
 
-    // IDs que o usuário selecionou
-    const idsSelecionados = materiaisSelecionados.value
+    const idsSelecionados = materiaisSelecionados.value.map(
+      id => Number(id)
+    )
 
-    console.log("Atuais:", idsAtuais)
-    console.log("Selecionados:", idsSelecionados)
+    console.log("IDs atuais:", idsAtuais)
+    console.log("IDs selecionados:", idsSelecionados)
 
 
-    // =========================
     // ADICIONAR
-    // =========================
-
     for (const id of idsSelecionados) {
 
       if (!idsAtuais.includes(id)) {
 
-        console.log("Adicionando:", id)
+        console.log("ADICIONANDO:", id)
 
         await axios.post(
           `${API_DASHBOARD}/materiais/${id}`
@@ -160,15 +158,12 @@ const salvarSelecao = async () => {
     }
 
 
-    // =========================
     // REMOVER
-    // =========================
-
     for (const id of idsAtuais) {
 
       if (!idsSelecionados.includes(id)) {
 
-        console.log("Removendo:", id)
+        console.log("REMOVENDO:", id)
 
         await axios.delete(
           `${API_DASHBOARD}/materiais/${id}`
@@ -179,28 +174,24 @@ const salvarSelecao = async () => {
     }
 
 
-    // =========================
-    // ATUALIZAR DASHBOARD
-    // =========================
-
+    // Recarregar a Dashboard depois das alterações
     await carregarDashboard()
 
-
-    // Fecha o modal
     modalAberto.value = false
 
-
-    console.log("Dashboard salva com sucesso!")
+    console.log("SALVO COM SUCESSO!")
 
   } catch (error) {
 
+    console.error("ERRO AO SALVAR:", error)
+
     console.error(
-      "Erro ao salvar Dashboard:",
-      error
+      "STATUS:",
+      error.response?.status
     )
 
     console.error(
-      "Resposta:",
+      "RESPOSTA:",
       error.response?.data
     )
 
@@ -273,14 +264,14 @@ onMounted(() => {
 .main-container {
   display: flex;
   height: 100vh;
+  overflow: hidden;
   background-color: #1a1a1a;
   color: #333;
 }
 
 .main-content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  height: 100vh;
   overflow-y: auto;
 }
 
@@ -367,8 +358,8 @@ onMounted(() => {
   border-radius: 8px;
 
   width: 400px;
-  max-width: 90%;
-
+  max-width: 90vh;
+  overflow-y:auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
