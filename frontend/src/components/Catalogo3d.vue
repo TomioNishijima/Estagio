@@ -33,9 +33,13 @@
                 :alt="`Modelo 3D de ${movel.nome}`"
                 camera-controls
                 auto-rotate
+                ar
+                ar-modes="webxr scene-viewer quick-look"
+                ar-placement="floor"
                 shadow-intensity="1"
                 interaction-prompt="none"
                 class="mini-viewer"
+                @load="verificarSuporteAR($event, movel.id)"
               ></model-viewer>
 
               <div v-else class="sem-modelo">
@@ -48,18 +52,36 @@
               <span class="categoria">
                 {{ movel.categoria }}
               </span>
-
               <h3>{{ movel.nome }}</h3>
               <p>{{ movel.descricao }}</p>
 
-              <button
-                type="button"
-                class="btn-visualizar"
-                :disabled="!movel.modelo"
-                @click="visualizarMovel(movel)"
-              >
-                {{ movel.modelo ? 'Visualizar em 3D' : 'Em breve' }}
-              </button>
+              <!-- BOTÕES DO CARD -->
+              <div class="card-acoes">
+                <button
+                  type="button"
+                  class="btn-visualizar"
+                  :disabled="!movel.modelo"
+                  @click="visualizarMovel(movel)"
+                >
+                  {{ movel.modelo ? 'Ver em 3D' : 'Em breve' }}
+                </button>
+
+                <button
+                  v-if="movel.modelo && suporteAR[movel.id]"
+                  type="button"
+                  class="btn-ar-card"
+                  @click="abrirAR($event)"
+                >
+                  📱 Ver em AR
+                </button>
+
+                <span
+                  v-else-if="movel.modelo"
+                  class="ar-aviso"
+                >
+                  📱 AR disponível em celular compatível
+                </span>
+              </div>
             </div>
           </article>
         </section>
@@ -88,11 +110,22 @@
             :alt="`Visualização 3D de ${movelSelecionado.nome}`"
             camera-controls
             auto-rotate
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            ar-placement="floor"
             shadow-intensity="1"
             exposure="1"
             interaction-prompt="auto"
             class="viewer-principal"
-          ></model-viewer>
+          >
+            <button
+              slot="ar-button"
+              type="button"
+              class="btn-ar"
+            >
+              📱 Ver no meu ambiente
+            </button>
+          </model-viewer>
 
           <p class="viewer-instrucao">
             Arraste para girar o móvel. Use o scroll
@@ -134,12 +167,35 @@ const moveis = ref([
 ])
 
 const movelSelecionado = ref(null)
+const suporteAR = ref({})
 
 function visualizarMovel(movel) {
   if (!movel.modelo) return
 
   movelSelecionado.value = movel
 }
+
+function abrirAR(event, movel) {
+  if (!movel.modelo) return
+
+  const card = event.currentTarget.closest('.movel-card')
+  const viewer = card?.querySelector('model-viewer')
+
+  if (viewer?.canActivateAR) {
+    viewer.activateAR()
+  } else {
+    visualizarMovel(movel)
+  }
+}
+
+async function verificarSuporteAR(event, id) {
+  const viewer = event.currentTarget
+
+  await viewer.updateComplete
+
+  suporteAR.value[id] = viewer.canActivateAR === true
+}
+
 </script>
 
 <style scoped>
@@ -148,6 +204,82 @@ function visualizarMovel(movel) {
 * {
   box-sizing: border-box;
   font-family: 'Lexend', sans-serif;
+}
+
+/* BOTÕES DOS CARDS */
+
+.card-acoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.card-acoes .btn-visualizar {
+  margin-top: 0;
+}
+
+.btn-ar-card {
+  width: 100%;
+  min-height: 42px;
+  border: none;
+  border-radius: 6px;
+
+  background: #611811;
+  color: white;
+
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-ar-card:hover:not(:disabled) {
+  background: #7d251b;
+}
+
+.btn-ar-card:disabled {
+  background: #b9b9b9;
+  cursor: not-allowed;
+}
+
+/* Esconde o botão AR padrão dentro da miniatura */
+.mini-viewer::part(default-ar-button) {
+  display: none;
+}
+
+@media (max-width: 400px) {
+  .card-acoes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BOTÃO DE REALIDADE AUMENTADA */
+
+.btn-ar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+
+  background: #611811;
+  color: white;
+
+  font-family: 'Lexend', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+.btn-ar:hover {
+  background: #7d251b;
 }
 
 .main-container {
