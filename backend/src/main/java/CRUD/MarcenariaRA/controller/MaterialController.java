@@ -6,10 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
+import CRUD.MarcenariaRA.repository.CategoriaRepository;
 import java.util.List;
 import java.text.Normalizer;
 import java.util.Locale;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/materiais")
@@ -18,6 +19,9 @@ public class MaterialController {
 
     @Autowired
     private MaterialRepository repository;
+
+    @Autowired
+    private CategoriaRepository categoriaRepository;
 
     private String padronizarNome(String nome) {
         if (nome == null) {
@@ -59,7 +63,7 @@ public class MaterialController {
     }
 
     @PostMapping
-    public Material salvar(@Valid @RequestBody Material material) {
+    public ResponseEntity<Material> salvar(@Valid @RequestBody Material material) {
 
         String nomePadronizado = padronizarNome(material.getNome());
 
@@ -77,9 +81,37 @@ public class MaterialController {
             );
         }
 
+
+        // Procura um material desativado com o mesmo nome
+        Material materialInativo = repository.findAll()
+                .stream()
+                .filter(m -> Boolean.FALSE.equals(m.getAtivo()))
+                .filter(m ->
+                        normalizarParaComparacao(m.getNome())
+                                .equals(normalizarParaComparacao(nomePadronizado))
+                )
+                .findFirst()
+                .orElse(null);
+
+// Se encontrou, reativa o registro antigo
+        if (materialInativo != null) {
+
+            materialInativo.setAtivo(true);
+
+            return ResponseEntity.ok(
+                    repository.save(materialInativo)
+            );
+        }
+
+
         material.setNome(nomePadronizado);
 
-        return repository.save(material);
+        material.setCategoria(
+                validarCategoriaAtiva(material.getCategoria())
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(repository.save(material));
     }
 
     @DeleteMapping("/{id}")
@@ -122,9 +154,53 @@ public class MaterialController {
         }
 
         material.setNome(nomePadronizado);
-        material.setCategoria(materialEditado.getCategoria());
+        String categoriaRecebida = materialEditado.getCategoria();
+
+        if (categoriaRecebida == null || categoriaRecebida.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Selecione uma categoria."
+            );
+        }
+
+// Se a categoria não mudou, preserva a antiga.
+        if (!padronizarNome(categoriaRecebida)
+                .equals(padronizarNome(material.getCategoria()))) {
+
+            // Se mudou, a nova categoria precisa estar ativa.
+            material.setCategoria(
+                    validarCategoriaAtiva(categoriaRecebida)
+            );
+        }
         material.setValor(materialEditado.getValor());
 
         return repository.save(material);
     }
+
+
+    private String validarCategoriaAtiva(String nome) {
+
+        if (nome == null || nome.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Selecione uma categoria."
+            );
+        }
+
+        String categoriaPadronizada = nome.trim()
+                .replaceAll("\\s+", " ")
+                .toUpperCase(Locale.ROOT);
+
+        if (!categoriaRepository
+                .existsByNomeIgnoreCaseAndAtivoTrue(categoriaPadronizada)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Categoria inexistente ou desativada."
+            );
+        }
+
+        return categoriaPadronizada;
+    }
+
 }

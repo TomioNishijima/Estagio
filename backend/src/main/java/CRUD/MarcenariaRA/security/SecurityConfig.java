@@ -40,6 +40,13 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/modelos/uploads/**"
+                        ).permitAll()
+
                         // CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 

@@ -39,14 +39,39 @@
         </li>
       </ul>
     </nav>
+    
+    <button
+      type="button"
+      class="btn-sair"
+      @click="sair"
+    >
+      <span>↪</span>
+      Sair da conta
+    </button>
+
   </aside>
 </template>
 
 
 <script setup>
 import { ref } from 'vue'
-
+import { useRouter } from 'vue-router'
 const aberto = ref(false)
+
+const router = useRouter()
+
+const sair = () => {
+  // Remove os dados da sessão
+  localStorage.removeItem('token')
+  localStorage.removeItem('usuario')
+
+  // Fecha o menu no celular
+  aberto.value = false
+
+  // Volta para a tela de login
+  router.replace('/login')
+}
+
 </script>
 
 
@@ -151,6 +176,29 @@ const aberto = ref(false)
     transform: translateX(0);
   }
 
+}
+
+
+.btn-sair {
+  margin-top: auto;
+  margin-bottom: 20px;
+  margin-left: 15px;
+  margin-right: 15px;
+
+  padding: 14px;
+  border: none;
+  border-radius: 6px;
+
+  background: #611811;
+  color: white;
+
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-sair:hover {
+  background: #7d251b;
 }
 
 </style>

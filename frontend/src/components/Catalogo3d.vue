@@ -18,6 +18,96 @@
             </p>
           </div>
         </div>
+        
+        <p v-if="carregando" class="viewer-instrucao">
+          Carregando catálogo...
+        </p>
+
+        <p v-else-if="erroCatalogo" class="viewer-instrucao">
+          {{ erroCatalogo }}
+        </p>
+
+        <p
+          v-else-if="moveis.length === 0"
+          class="viewer-instrucao"
+        >
+          Nenhum móvel cadastrado ainda.
+        </p>
+        
+        
+        <!-- CADASTRAR MÓVEL -->
+        <section class="cadastro-movel">
+          <h3>
+            {{ editandoMovelId !== null
+              ? 'Editar móvel'
+              : 'Cadastrar novo móvel' }}
+          </h3>
+
+          <form @submit.prevent="cadastrarMovel">
+
+            <input
+              v-model="novoMovel.nome"
+              type="text"
+              placeholder="Nome do móvel"
+              required
+            />
+
+            <input
+              v-model="novoMovel.categoria"
+              type="text"
+              placeholder="Categoria (ex.: Cadeiras)"
+              required
+            />
+
+            <textarea
+              v-model="novoMovel.descricao"
+              placeholder="Descrição do móvel"
+              rows="3"
+            ></textarea>
+
+            
+            <label for="arquivo-modelo">
+              Arquivo do modelo 3D (.glb)
+            </label>
+
+            <input
+              id="arquivo-modelo"
+              type="file"
+              accept=".glb,model/gltf-binary"
+              @change="enviarModelo3D"
+            />
+
+            <p v-if="enviandoModelo">
+              Enviando modelo 3D...
+            </p>
+
+            <p v-if="novoMovel.modelo">
+              Modelo selecionado: {{ novoMovel.modelo }}
+            </p>
+
+
+            <button
+              type="submit"
+              :disabled="enviandoModelo"
+            >
+              + Cadastrar móvel
+            </button>
+
+            <button
+              v-if="editandoMovelId !== null"
+              type="button"
+              class="btn-cancelar-edicao"
+              @click="cancelarEdicao"
+            >
+              Cancelar edição
+            </button>
+          </form>
+
+          <p v-if="mensagemCadastro">
+            {{ mensagemCadastro }}
+          </p>
+        </section>
+
 
         <!-- CATÁLOGO -->
         <section class="catalogo-grid">
@@ -49,6 +139,25 @@
             </div>
 
             <div class="card-info">
+              
+              <div class="acoes-gerenciar">
+                <button
+                  type="button"
+                  class="btn-editar-movel"
+                  @click="editarMovel(movel)"
+                >
+                  Editar
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-desativar-movel"
+                  @click="desativarMovel(movel)"
+                >
+                  Desativar
+                </button>
+              </div>
+
               <span class="categoria">
                 {{ movel.categoria }}
               </span>
@@ -70,7 +179,7 @@
                   v-if="movel.modelo && suporteAR[movel.id]"
                   type="button"
                   class="btn-ar-card"
-                  @click="abrirAR($event)"
+                  @click="abrirAR($event, movel)"
                 >
                   📱 Ver em AR
                 </button>
@@ -138,36 +247,70 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import api from '../services/api'
 import Sidebar from './Sidebar.vue'
 import '@google/model-viewer'
 
-const moveis = ref([
-  {
-    id: 1,
-    nome: 'Cadeira 3D',
-    categoria: 'Cadeiras',
-    descricao: 'Modelo demonstrativo para testar a visualização 3D.',
-    modelo: '/modelos/cadeira.glb'
-  },
-  {
-    id: 2,
-    nome: 'Armário Planejado',
-    categoria: 'Armários',
-    descricao: 'Modelo de armário planejado.',
-    modelo: null
-  },
-  {
-    id: 3,
-    nome: 'Mesa de Escritório',
-    categoria: 'Mesas',
-    descricao: 'Modelo de mesa para escritório.',
-    modelo: null
-  }
-])
+const moveis = ref([])
+const carregando = ref(true)
+const erroCatalogo = ref('')
+const enviandoModelo = ref(false)
 
+const carregarMoveis = async () => {
+  try {
+    const resposta = await api.get('/api/moveis')
+
+    moveis.value = resposta.data
+    erroCatalogo.value = ''
+
+  } catch (error) {
+    console.error('Erro ao carregar móveis:', error)
+    erroCatalogo.value = 'Erro ao carregar o catálogo.'
+
+  } finally {
+    carregando.value = false
+  }
+}
+
+onMounted(carregarMoveis)
+
+const novoMovel = ref({
+  nome: '',
+  categoria: '',
+  descricao: '',
+  modelo: ''
+})
+
+const mensagemCadastro = ref('')
 const movelSelecionado = ref(null)
 const suporteAR = ref({})
+
+const editandoMovelId = ref(null)
+
+const editarMovel = (movel) => {
+  editandoMovelId.value = movel.id
+
+  novoMovel.value = {
+    nome: movel.nome || '',
+    categoria: movel.categoria || '',
+    descricao: movel.descricao || '',
+    modelo: movel.modelo || ''
+  }
+
+  mensagemCadastro.value = ''
+}
+
+const cancelarEdicao = () => {
+  editandoMovelId.value = null
+
+  novoMovel.value = {
+    nome: '',
+    categoria: '',
+    descricao: '',
+    modelo: ''
+  }
+}
 
 function visualizarMovel(movel) {
   if (!movel.modelo) return
@@ -195,6 +338,146 @@ async function verificarSuporteAR(event, id) {
 
   suporteAR.value[id] = viewer.canActivateAR === true
 }
+
+
+
+const cadastrarMovel = async () => {
+  if (enviandoModelo.value) return
+  if (!novoMovel.value.nome.trim() ||
+      !novoMovel.value.categoria.trim()) {
+    mensagemCadastro.value = 'Preencha nome e categoria.'
+    return
+  }
+
+  const dados = {
+    nome: novoMovel.value.nome.trim(),
+    categoria: novoMovel.value.categoria.trim(),
+    descricao: novoMovel.value.descricao.trim(),
+    modelo: novoMovel.value.modelo.trim() || null
+  }
+
+  const eraEdicao = editandoMovelId.value !== null
+
+  try {
+    let resposta
+
+    if (eraEdicao) {
+      resposta = await api.put(
+        `/api/moveis/${editandoMovelId.value}`,
+        dados
+      )
+    } else {
+      resposta = await api.post('/api/moveis', dados)
+    }
+
+    mensagemCadastro.value = eraEdicao
+      ? 'Móvel atualizado com sucesso!'
+      : resposta.status === 200
+        ? 'Móvel reativado com sucesso!'
+        : 'Móvel cadastrado com sucesso!'
+
+    cancelarEdicao()
+
+    await carregarMoveis()
+
+    // Atualiza o visualizador se o móvel editado estiver aberto
+    if (movelSelecionado.value) {
+      movelSelecionado.value =
+        moveis.value.find(
+          m => m.id === movelSelecionado.value.id
+        ) || null
+    }
+
+  } catch (error) {
+    mensagemCadastro.value =
+      error.response?.data?.message ||
+      'Erro ao salvar móvel.'
+
+    console.error(error)
+  }
+}
+
+
+const desativarMovel = async (movel) => {
+  const confirmou = confirm(
+    `Deseja desativar o móvel "${movel.nome}"?`
+  )
+
+  if (!confirmou) return
+
+  try {
+    await api.delete(`/api/moveis/${movel.id}`)
+
+    if (movelSelecionado.value?.id === movel.id) {
+      movelSelecionado.value = null
+    }
+
+    if (editandoMovelId.value === movel.id) {
+      cancelarEdicao()
+    }
+
+    await carregarMoveis()
+
+    mensagemCadastro.value = 'Móvel desativado com sucesso!'
+
+  } catch (error) {
+    mensagemCadastro.value =
+      error.response?.data?.message ||
+      'Erro ao desativar móvel.'
+
+    console.error(error)
+  }
+}
+
+
+const enviarModelo3D = async (event) => {
+  const arquivo = event.target.files?.[0]
+
+  if (!arquivo) return
+
+  if (!arquivo.name.toLowerCase().endsWith('.glb')) {
+    mensagemCadastro.value = 'Selecione um arquivo .glb.'
+    event.target.value = ''
+    return
+  }
+
+  if (arquivo.size > 25 * 1024 * 1024) {
+    mensagemCadastro.value = 'O arquivo deve ter no máximo 25 MB.'
+    event.target.value = ''
+    return
+  }
+
+  enviandoModelo.value = true
+  mensagemCadastro.value = ''
+
+  try {
+    const dados = new FormData()
+    dados.append('arquivo', arquivo)
+
+    const resposta = await api.post(
+      '/api/modelos/upload',
+      dados
+    )
+
+    // Guarda automaticamente o caminho retornado pelo backend
+    novoMovel.value.modelo = resposta.data.modelo
+
+    mensagemCadastro.value =
+      'Modelo 3D enviado! Agora salve o móvel.'
+
+  } catch (error) {
+    console.error('Erro no upload:', error)
+
+    mensagemCadastro.value =
+      error.response?.data?.message ||
+      'Erro ao enviar o modelo 3D.'
+
+  } finally {
+    enviandoModelo.value = false
+    event.target.value = ''
+  }
+}
+
 
 </script>
 
@@ -530,4 +813,81 @@ async function verificarSuporteAR(event, id) {
     padding: 15px;
   }
 }
+
+
+.cadastro-movel {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.cadastro-movel h3 {
+  color: #611811;
+  margin: 0 0 18px;
+}
+
+.cadastro-movel form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cadastro-movel input,
+.cadastro-movel textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.cadastro-movel button {
+  background: #611811;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cadastro-movel p {
+  margin-top: 12px;
+  color: #611811;
+}
+
+
+.acoes-gerenciar {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn-editar-movel,
+.btn-desativar-movel {
+  flex: 1;
+  border: none;
+  border-radius: 6px;
+  padding: 10px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-editar-movel {
+  background: #444b54;
+}
+
+.btn-desativar-movel {
+  background: #611811;
+}
+
+.cadastro-movel .btn-cancelar-edicao {
+  background: #777;
+  color: white;
+}
+
+
 </style>

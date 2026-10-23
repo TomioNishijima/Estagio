@@ -9,7 +9,8 @@ import CRUD.MarcenariaRA.repository.OrcamentoRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController
@@ -104,6 +105,38 @@ public class OrcamentoController {
                         .body(
                                 "O orçamento precisa ter pelo menos um material."
                         );
+            }
+
+
+// Validar todos os itens ANTES de salvar no banco
+            for (ItemRequest item : request.itens) {
+
+                if (item == null || item.materialId == null) {
+                    return ResponseEntity.badRequest()
+                            .body("Material inválido.");
+                }
+
+                if (item.quantidade == null ||
+                        item.quantidade <= 0 ||
+                        !Double.isFinite(item.quantidade)) {
+                    return ResponseEntity.badRequest()
+                            .body("A quantidade deve ser maior que zero.");
+                }
+
+                Material material = materialRepository
+                        .findById(item.materialId)
+                        .orElse(null);
+
+                if (material == null) {
+                    return ResponseEntity.badRequest()
+                            .body("Material não encontrado: " + item.materialId);
+                }
+
+                if (material.getValor() == null ||
+                        !Double.isFinite(material.getValor())) {
+                    return ResponseEntity.badRequest()
+                            .body("O material não possui um valor válido.");
+                }
             }
 
 
@@ -215,15 +248,15 @@ public class OrcamentoController {
             return ResponseEntity.ok(orcamento);
 
 
-        } catch (Exception e) {
 
-            return ResponseEntity
-                    .badRequest()
-                    .body(
-                            "Erro ao criar orçamento: "
-                                    + e.getMessage()
-                    );
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erro interno ao criar orçamento.",
+                    e
+            );
         }
+
     }
 
 
@@ -273,6 +306,35 @@ public class OrcamentoController {
                         .body(
                                 "O orçamento precisa ter pelo menos um material."
                         );
+            }
+
+
+            // Valida todos os itens ANTES de alterar o orçamento
+            for (ItemRequest item : request.itens) {
+
+                if (item == null || item.materialId == null) {
+                    return ResponseEntity.badRequest()
+                            .body("Material inválido.");
+                }
+
+                if (item.quantidade == null || item.quantidade <= 0) {
+                    return ResponseEntity.badRequest()
+                            .body("A quantidade deve ser maior que zero.");
+                }
+
+                Material material = materialRepository
+                        .findById(item.materialId)
+                        .orElse(null);
+
+                if (material == null) {
+                    return ResponseEntity.badRequest()
+                            .body("Material não encontrado: " + item.materialId);
+                }
+
+                if (material.getValor() == null) {
+                    return ResponseEntity.badRequest()
+                            .body("O material não possui um valor cadastrado.");
+                }
             }
 
 
@@ -374,15 +436,15 @@ public class OrcamentoController {
             return ResponseEntity.ok(orcamento);
 
 
-        } catch (Exception e) {
 
-            return ResponseEntity
-                    .badRequest()
-                    .body(
-                            "Erro ao editar orçamento: "
-                                    + e.getMessage()
-                    );
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erro interno ao editar orçamento.",
+                    e
+            );
         }
+
     }
 
 

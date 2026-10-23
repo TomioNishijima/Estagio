@@ -28,11 +28,18 @@ export default defineConfig({
     host: '0.0.0.0',
 
     // Encaminha as requisições da API para o Spring Boot
+    
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true
+      },
+
+      '/modelos/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
       }
     }
+
   }
 })

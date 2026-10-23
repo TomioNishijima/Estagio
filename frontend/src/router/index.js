@@ -56,4 +56,20 @@ const router = createRouter({
 
 })
 
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token')
+
+  const paginasPublicas = ['/login', '/cadastro']
+
+  // Sem login: permite apenas páginas públicas
+  if (!token && !paginasPublicas.includes(to.path)) {
+    return '/login'
+  }
+
+  // Já logado: não precisa voltar ao login
+  if (token && paginasPublicas.includes(to.path)) {
+    return '/dashboard'
+  }
+})
+
 export default router

@@ -46,7 +46,17 @@
                   class="input-field"
                   required
                 >
+                  
                   <option value="" disabled>Selecione a categoria</option>
+
+                  <option
+                    v-for="categoria in categorias"
+                    :key="categoria.id"
+                    :value="categoria.nome"
+                  >
+                    {{ categoria.nome }}
+                  </option>
+
                   <option value="MDF 15MM">MDF 15MM</option>
                   <option value="MDF 6MM">MDF 6MM</option>
                   <option value="FITA DE BORDA">FITA DE BORDA</option>
@@ -93,6 +103,69 @@
               </button>
             </div>
           </div>
+          
+          <!-- GERENCIAMENTO DE CATEGORIAS -->
+          <div class="cadastro-section">
+
+            <div class="cadastro-header">
+              <h3>Gerenciar Categorias</h3>
+            </div>
+
+            <div class="form-row">
+
+              <div class="campo-cadastro name-field">
+                <label for="nova-categoria">
+                  Nome da nova categoria
+                </label>
+
+                <input
+                  id="nova-categoria"
+                  v-model="novaCategoria"
+                  @keyup.enter="cadastrarCategoria"
+                  type="text"
+                  placeholder="Ex.: MADEIRA MACIÇA"
+                  class="input-field nome-maiusculo"
+                />
+              </div>
+
+              <button
+                type="button"
+                class="btn-save btn-cadastro"
+                @click="cadastrarCategoria"
+              >
+                + Adicionar categoria
+              </button>
+
+            </div>
+
+            
+            <div class="lista-categorias">
+              <div
+                v-for="categoria in categorias"
+                :key="categoria.id"
+                class="categoria-item"
+              >
+                <span>{{ categoria.nome }}</span>
+
+                <button
+                  type="button"
+                  class="btn-editar-categoria"
+                  @click="editarCategoria(categoria)"
+                >
+                  Editar
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-excluir-categoria"
+                  @click="desativarCategoria(categoria)"
+                >
+                  Desativar
+                </button>
+              </div>
+            </div>
+
+          </div>
 
           <div class="table-section">
             <!-- BUSCA E FILTROS -->
@@ -120,13 +193,13 @@
                   v-model="filtroCategoria"
                   class="input-field"
                 >
-                <option value="todas">Todas as categorias</option>
-                <option value="MDF 15MM">MDF 15MM</option>
-                <option value="MDF 6MM">MDF 6MM</option>
-                <option value="FITA DE BORDA">FITA DE BORDA</option>
-                <option value="FERRAGEM">FERRAGEM</option>
-                <option value="ACESSÓRIOS">ACESSÓRIOS</option>
-                <option value="OUTROS">OUTROS</option>
+                <option
+                  v-for="nome in categoriasDoFiltro"
+                  :key="nome"
+                  :value="nome"
+                >
+                  {{ nome }}
+                </option>
                 </select>
 
               </div>
@@ -208,12 +281,28 @@
                   <td>
                     <template v-if="editandoId === m.id">
                       <select v-model="m.categoria" class="input-field">
-                        <option value="MDF 15MM">MDF 15MM</option>
-                        <option value="MDF 6MM">MDF 6MM</option>
-                        <option value="FITA DE BORDA">FITA DE BORDA</option>
-                        <option value="FERRAGEM">FERRAGEM</option>
-                        <option value="ACESSÓRIOS">ACESSÓRIOS</option>
-                        <option value="OUTROS">OUTROS</option>
+                        
+                      <!-- Preserva a categoria antiga do material -->
+                      <option
+                        v-if="
+                          m.categoria &&
+                          !categorias.some(c => c.nome === m.categoria)
+                        "
+                        :value="m.categoria"
+                        disabled
+                      >
+                        {{ m.categoria }} (categoria antiga)
+                      </option>
+
+                      <!-- Permite escolher apenas categorias ativas -->
+                      <option
+                        v-for="categoria in categorias"
+                        :key="categoria.id"
+                        :value="categoria.nome"
+                      >
+                        {{ categoria.nome }}
+                      </option>
+
                       </select>
                     </template>
 
@@ -413,12 +502,26 @@ const registrarMovimentacao = async () => {
 };
 
 const materiais = ref([])
+const categorias = ref([])
+const novaCategoria = ref('')
 const busca = ref('')
 const filtroEstoque = ref('todos')
 const ordenacao = ref('nome-asc')
 const novoMaterial = ref({ nome: '', quantidade: null, valor: null, categoria: ''})
 const filtroCategoria = ref('todas')
 const notificacao = ref({ visivel: false, mensagem: '', tipo: 'sucesso' });
+
+
+const categoriasDoFiltro = computed(() => {
+  const nomes = materiais.value
+    .map(material => material.categoria)
+    .filter(Boolean)
+
+  return [...new Set(nomes)].sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  )
+})
+
 
 const mostrarAviso = (msg, tipo = 'sucesso') => {
   notificacao.value = { visivel: true, mensagem: msg, tipo };
@@ -515,10 +618,12 @@ const salvarMaterial = async () => {
   try {
     console.log("Material enviado:", novoMaterial.value);
 
-    await api.post(
+    const resposta = await api.post(
       API_MATERIAIS,
       novoMaterial.value
     );
+
+const reativado = resposta.status === 200;
 
     novoMaterial.value = {
       nome: '',
@@ -529,7 +634,11 @@ const salvarMaterial = async () => {
 
     carregarMateriais();
 
-    mostrarAviso("Material cadastrado com sucesso!");
+    mostrarAviso(
+      reativado
+        ? "Material reativado com sucesso! Os dados anteriores foram preservados."
+        : "Material cadastrado com sucesso!"
+    );
 
   }  catch (error) {
     console.error("Erro ao cadastrar material:", error);
@@ -594,7 +703,121 @@ const editarMaterial = async (material) => {
   }
 }
 
-onMounted(carregarMateriais)
+const carregarCategorias = async () => {
+  try {
+    const resposta = await api.get('/api/categorias')
+
+    categorias.value = resposta.data
+
+  } catch (error) {
+    console.error('Erro ao carregar categorias:', error)
+    mostrarAviso('Erro ao carregar categorias.', 'erro')
+  }
+}
+
+
+const cadastrarCategoria = async () => {
+  const nome = novaCategoria.value.trim()
+
+  if (!nome) {
+    mostrarAviso('Informe o nome da categoria.', 'erro')
+    return
+  }
+
+  try {
+    await api.post('/api/categorias', {
+      nome: nome
+    })
+
+    novaCategoria.value = ''
+
+    await carregarCategorias()
+
+    mostrarAviso('Categoria cadastrada com sucesso!')
+
+  } catch (error) {
+    const dados = error.response?.data
+
+    const mensagem =
+      dados?.message ||
+      (typeof dados === 'string' ? dados : null) ||
+      'Erro ao cadastrar categoria.'
+
+    mostrarAviso(mensagem, 'erro')
+  }
+}
+
+
+const editarCategoria = async (categoria) => {
+  const novoNome = prompt(
+    'Digite o novo nome da categoria:',
+    categoria.nome
+  )
+
+  if (novoNome === null) return
+
+  const nome = novoNome.trim()
+
+  if (!nome) {
+    mostrarAviso('O nome não pode ficar vazio.', 'erro')
+    return
+  }
+
+  try {
+    await api.put(`/api/categorias/${categoria.id}`, {
+      nome
+    })
+
+    await carregarCategorias()
+
+    mostrarAviso('Categoria atualizada com sucesso!')
+  } catch (error) {
+    const dados = error.response?.data
+
+    mostrarAviso(
+      dados?.message ||
+      (typeof dados === 'string' ? dados : null) ||
+      'Erro ao editar categoria.',
+      'erro'
+    )
+  }
+}
+
+const desativarCategoria = async (categoria) => {
+  const confirmou = confirm(
+    `Deseja desativar a categoria "${categoria.nome}"?`
+  )
+
+  if (!confirmou) return
+
+  try {
+    await api.delete(`/api/categorias/${categoria.id}`)
+
+    // Impede usar a categoria desativada
+    // em um novo cadastro de material
+    if (novoMaterial.value.categoria === categoria.nome) {
+      novoMaterial.value.categoria = ''
+    }
+
+    await carregarCategorias()
+
+    mostrarAviso('Categoria desativada com sucesso!')
+  } catch (error) {
+    const dados = error.response?.data
+
+    mostrarAviso(
+      dados?.message ||
+      (typeof dados === 'string' ? dados : null) ||
+      'Erro ao desativar categoria.',
+      'erro'
+    )
+  }
+}
+
+onMounted(() => {
+  carregarMateriais()
+  carregarCategorias()
+})
 </script>
 
 <style scoped>
@@ -1096,6 +1319,50 @@ td {
   height: 36px;
   margin: 0;
   border-radius: 6px;
+}
+
+
+.lista-categorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.categoria-item {
+  background: #f0e8e6;
+  color: #611811;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.categoria-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-editar-categoria,
+.btn-excluir-categoria {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-editar-categoria {
+  background: #444b54;
+  color: white;
+}
+
+.btn-excluir-categoria {
+  background: #611811;
+  color: white;
 }
 
 </style>
