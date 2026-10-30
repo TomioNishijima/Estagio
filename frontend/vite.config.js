@@ -23,11 +23,16 @@ export default defineConfig({
     },
   },
 
-  // Permite acessar o Vue pelo celular na mesma rede
   server: {
     host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
 
-    // Encaminha as requisições da API para o Spring Boot
+    allowedHosts: [
+      'bookmark-geographic-hamilton-telecommunications.trycloudflare.com'
+    ],
+    
+
     
     proxy: {
       '/api': {

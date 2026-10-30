@@ -94,7 +94,7 @@ import { ref, onMounted } from 'vue'
 import api from '../services/api'
 import Sidebar from './Sidebar.vue'
 
-const API_DASHBOARD = 'http://localhost:8080/api/dashboard'
+const API_DASHBOARD = '/api/dashboard'
 
 const materiais = ref([])
 const modalAberto = ref(false)

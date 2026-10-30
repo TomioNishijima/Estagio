@@ -433,7 +433,7 @@ const testarCriacao = async () => {
   try {
 
     const resposta = await api.post(
-      'http://localhost:8080/api/orcamentos',
+      '/api/orcamentos',
       {
         nome: 'Orçamento Teste',
 
@@ -678,7 +678,7 @@ const editarMaterial = async (material) => {
   try {
 
     await api.put(
-      `http://localhost:8080/api/materiais/${material.id}`,
+      `/api/materiais/${material.id}`,
       {
         nome: material.nome,
         categoria: material.categoria,
