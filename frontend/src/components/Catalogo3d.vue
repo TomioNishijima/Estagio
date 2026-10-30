@@ -117,20 +117,10 @@
             class="movel-card"
           >
             <div class="card-visual">
-              <model-viewer
-                v-if="movel.modelo"
-                :src="movel.modelo"
-                :alt="`Modelo 3D de ${movel.nome}`"
-                camera-controls
-                auto-rotate
-                ar
-                ar-modes="webxr scene-viewer quick-look"
-                ar-placement="floor"
-                shadow-intensity="1"
-                interaction-prompt="none"
-                class="mini-viewer"
-                @load="verificarSuporteAR($event, movel.id)"
-              ></model-viewer>
+              <div v-if="movel.modelo" class="sem-modelo">
+                <span>MODELO 3D</span>
+                <small>Clique em Ver em 3D</small>
+              </div>
 
               <div v-else class="sem-modelo">
                 <span>MODELO 3D</span>

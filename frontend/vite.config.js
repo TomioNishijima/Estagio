@@ -29,7 +29,7 @@ export default defineConfig({
     strictPort: true,
 
     allowedHosts: [
-      'bookmark-geographic-hamilton-telecommunications.trycloudflare.com'
+      'desktop-548qvgt.taila4a5df.ts.net'
     ],
     
 
